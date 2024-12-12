@@ -1,2 +1,5 @@
-Flask
-requests
+Flask==2.3.0
+urllib3==1.26.14
+pycryptodome==3.17
+httpx==0.23.0
+Flask[async]==2.3.0
