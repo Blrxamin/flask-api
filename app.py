@@ -3,8 +3,8 @@ import requests
 
 app = Flask(__name__)
 
-@app.route('/player_info', methods=['GET'])
-def get_player_info():
+@app.route('/visit', methods=['GET'])
+def visit():
     try:
         player_id = request.args.get('id')
         region = request.args.get('region', 'br')
@@ -14,12 +14,13 @@ def get_player_info():
 
         url = f"https://api.bielnetwork.com.br/api/player_info?id={player_id}&region={region}"
 
-        response = requests.get(url)
+        for _ in range(100):
+            try:
+                requests.get(url)
+            except Exception as e:
+                pass
 
-        if response.status_code != 200:
-            return jsonify({"error": "Failed to fetch data from the original API", "details": response.text}), response.status_code
-
-        return jsonify(response.json()), 200
+        return jsonify({"message": "VISITORS HAVE BEEN SENT"}), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
