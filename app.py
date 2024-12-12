@@ -4,7 +4,7 @@ import requests
 app = Flask(__name__)
 
 @app.route('/visit', methods=['GET'])
-def visit():
+def get_player_info():
     try:
         player_id = request.args.get('id')
         region = request.args.get('region', 'br')
@@ -18,8 +18,10 @@ def visit():
             try:
                 requests.get(url)
             except Exception as e:
+                # تجاوز أي أخطاء أثناء إرسال الطلبات
                 pass
 
+        # إعادة رسالة ثابتة بعد إرسال الطلبات
         return jsonify({"message": "VISITORS HAVE BEEN SENT"}), 200
 
     except Exception as e:
