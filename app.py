@@ -14,12 +14,18 @@ def get_player_info():
 
         url = f"https://api.bielnetwork.com.br/api/player_info?id={player_id}&region={region}"
 
-        response = requests.get(url)
+        results = []
+        for _ in range(100):  # إرسال الطلب 100 مرة
+            response = requests.get(url)
+            if response.status_code != 200:
+                return jsonify({
+                    "error": "Failed to fetch data from the original API",
+                    "details": response.text
+                }), response.status_code
 
-        if response.status_code != 200:
-            return jsonify({"error": "Failed to fetch data from the original API", "details": response.text}), response.status_code
+            results.append(response.json())
 
-        return jsonify(response.json()), 200
+        return jsonify({"results": results}), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
