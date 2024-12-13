@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify
 import requests
 
@@ -29,12 +28,11 @@ def get_player_info():
         # الحصول على البيانات القادمة من واجهة برمجة التطبيقات الأصلية
         player_data = response.json()
 
-        # تحويل الاستجابة إلى نص مهيأ وإضافة التوقيع في النهاية
-        formatted_response = jsonify(player_data).get_data(as_text=True)
-        formatted_response += '\n\nBY API :@BL_RX AND @V1P_YK'
+        # إضافة رسالة "DEV BY API" في أسفل الاستجابة
+        player_data["DEV"] = 'BY API @BL_RX AND @V1P_YK'
 
-        # إرجاع النص النهائي
-        return formatted_response, 200, {'Content-Type': 'application/json'}
+        # إعادة البيانات بصيغة JSON مرتبة
+        return jsonify(player_data), 200
 
     except Exception as e:
         # إرجاع خطأ داخلي في حالة حدوث استثناء
