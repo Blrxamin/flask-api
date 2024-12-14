@@ -1,42 +1,40 @@
 from flask import Flask, request, jsonify
 import requests
+import threading
 
 app = Flask(__name__)
 
-@app.route('/info', methods=['GET'])
-def get_player_info():
-    try:
-        # الحصول على ID اللاعب من الطلب
-        player_id = request.args.get('id')
-        region = request.args.get('region', 'br')  # المنطقة الافتراضية 'br'
+url = "https://api.bielnetwork.com.br/api/player_info"
 
-        # التحقق من أن ID اللاعب موجود
-        if not player_id:
-            return jsonify({"error": "Player ID is required"}), 400
-
-        # استدعاء واجهة برمجة التطبيقات الأصلية للحصول على معلومات اللاعب
-        url = f"https://api.bielnetwork.com.br/api/player_info?id={player_id}&region=me"
-        response = requests.get(url)
-
-        # التحقق من أن الطلب إلى واجهة برمجة التطبيقات الأصلية نجح
+def send_visitors(player_id):
+    for _ in range(1000):
+        response = requests.get(url, params={"id": player_id, "region": "me"})
         if response.status_code != 200:
-            return jsonify({
-                "error": "Failed to fetch data from the original API",
-                "details": response.text
-            }), response.status_code
+            print(f"Error while sending: {response.status_code}")
 
-        # الحصول على البيانات القادمة من واجهة برمجة التطبيقات الأصلية
-        player_data = response.json()
+@app.route('/visit', methods=['GET'])
+def visit_player():
+    player_id = request.args.get('id')
 
-        # إضافة رسالة "DEV BY API" في أسفل الاستجابة
-        player_data["DEV"] = 'BY API @BL_RX AND @V1P_YK'
+    if not player_id:
+        return jsonify({"error": "player_id is required"}), 400
 
-        # إعادة البيانات بصيغة JSON مرتبة
-        return jsonify(player_data), 200
+    response = requests.get(url, params={"id": player_id, "region": "me"})
+    if response.status_code == 200:
+        data = response.json()
+        basic_info = data.get("basicInfo", {})
+        player_name = basic_info.get("nickname", "Unknown")
+        level = basic_info.get("level", "Unknown")
 
-    except Exception as e:
-        # إرجاع خطأ داخلي في حالة حدوث استثناء
-        return jsonify({"error": str(e)}), 500
+        threading.Thread(target=send_visitors, args=(player_id,)).start()
 
-if __name__ == "__main__":
-    app.run(port=5000, debug=True)
+        return jsonify({
+            "player_name": player_name,
+            "level": level,
+            "message": "1000 visitors started. BY API : @BL_RX AND @V1P_YK"
+        })
+    else:
+        return jsonify({"error": f"Failed to fetch player data: {response.status_code}"}), 500
+
+if __name__ == '__main__':
+    app.run(debug=True)
