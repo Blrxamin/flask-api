@@ -1,20 +1,28 @@
 from flask import Flask, request, jsonify
 import requests
-import threading
+import asyncio
+import aiohttp
 
 app = Flask(__name__)
 
 url = "https://api.bielnetwork.com.br/api/player_info"
 
-# Function to send 1000 requests to the API
-def send_visitors(player_id):
-    for _ in range(1000):
-        try:
-            response = requests.get(url, params={"id": player_id, "region": "me"})
-            if response.status_code != 200:
-                print(f"Error while sending: {response.status_code}")
-        except Exception as e:
-            print(f"An error occurred: {e}")
+# Function to send 1000 requests asynchronously
+async def send_visitors(player_id):
+    async with aiohttp.ClientSession() as session:
+        tasks = []
+        for _ in range(1000):
+            tasks.append(fetch_data(session, player_id))
+        await asyncio.gather(*tasks)
+
+# Function to fetch the player data
+async def fetch_data(session, player_id):
+    try:
+        async with session.get(url, params={"id": player_id, "region": "me"}) as response:
+            if response.status != 200:
+                print(f"Error while sending: {response.status}")
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 @app.route('/visit', methods=['GET'])
 def visit_player():
@@ -23,6 +31,7 @@ def visit_player():
     if not player_id:
         return jsonify({"error": "player_id is required"}), 400
 
+    # Fetch player data synchronously first
     response = requests.get(url, params={"id": player_id, "region": "me"})
     if response.status_code == 200:
         data = response.json()
@@ -30,10 +39,11 @@ def visit_player():
         player_name = basic_info.get("nickname", "Unknown")
         level = basic_info.get("level", "Unknown")
 
-        # Start the process to send 1000 requests in the background
-        threading.Thread(target=send_visitors, args=(player_id,)).start()
+        # Run the 1000 visitors task asynchronously using asyncio.run() to create the event loop
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(send_visitors(player_id))
 
-        # Respond to the user immediately
         return jsonify({
             "player_name": player_name,
             "level": level,
