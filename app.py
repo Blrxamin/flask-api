@@ -6,11 +6,15 @@ app = Flask(__name__)
 
 url = "https://api.bielnetwork.com.br/api/player_info"
 
+# Function to send 1000 requests to the API
 def send_visitors(player_id):
     for _ in range(1000):
-        response = requests.get(url, params={"id": player_id, "region": "me"})
-        if response.status_code != 200:
-            print(f"Error while sending: {response.status_code}")
+        try:
+            response = requests.get(url, params={"id": player_id, "region": "me"})
+            if response.status_code != 200:
+                print(f"Error while sending: {response.status_code}")
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
 @app.route('/visit', methods=['GET'])
 def visit_player():
@@ -26,8 +30,10 @@ def visit_player():
         player_name = basic_info.get("nickname", "Unknown")
         level = basic_info.get("level", "Unknown")
 
+        # Start the process to send 1000 requests in the background
         threading.Thread(target=send_visitors, args=(player_id,)).start()
 
+        # Respond to the user immediately
         return jsonify({
             "player_name": player_name,
             "level": level,
