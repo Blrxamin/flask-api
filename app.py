@@ -39,10 +39,8 @@ def visit_player():
         player_name = basic_info.get("nickname", "Unknown")
         level = basic_info.get("level", "Unknown")
 
-        # Run the 1000 visitors task asynchronously using asyncio.run() to create the event loop
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(send_visitors(player_id))
+        # Run the 1000 visitors task asynchronously
+        asyncio.create_task(send_visitors(player_id))
 
         return jsonify({
             "player_name": player_name,
