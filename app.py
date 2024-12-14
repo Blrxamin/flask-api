@@ -1,46 +1,70 @@
 from flask import Flask, request, jsonify
-import requests
-import threading
+import aiohttp
+import asyncio
 
 app = Flask(__name__)
 
-url = "https://api.bielnetwork.com.br/api/player_info"
+# دالة غير متزامنة لإرسال الطلبات
+async def send_request(session, url, i, results):
+    try:
+        async with session.get(url) as response:
+            if response.status == 200:
+                data = await response.json()
+                # استخراج المعلومات المطلوبة فقط
+                player_info = {
+                    "accountId": data.get("basicInfo", {}).get("accountId", "Unknown"),
+                    "nickname": data.get("basicInfo", {}).get("nickname", "Unknown"),
+                    "level": data.get("basicInfo", {}).get("level", "Unknown")
+                }
+                results.append(player_info)  # تخزين بيانات اللاعب
+            else:
+                results.append({"request": i + 1, "status": "Failed"})
+    except Exception as e:
+        results.append({"request": i + 1, "error": str(e)})
 
-# Function to send 1000 requests to the API
-def send_visitors(player_id):
-    for _ in range(1000):
-        try:
-            response = requests.get(url, params={"id": player_id, "region": "me"})
-            if response.status_code != 200:
-                print(f"Error while sending: {response.status_code}")
-        except Exception as e:
-            print(f"An error occurred: {e}")
-
+# المسار الرئيسي
 @app.route('/visit', methods=['GET'])
-def visit_player():
+def visit():
     player_id = request.args.get('id')
-
+    region = request.args.get('region', 'br')
+    
     if not player_id:
         return jsonify({"error": "player_id is required"}), 400
 
-    response = requests.get(url, params={"id": player_id, "region": "me"})
-    if response.status_code == 200:
-        data = response.json()
-        basic_info = data.get("basicInfo", {})
-        player_name = basic_info.get("nickname", "Unknown")
-        level = basic_info.get("level", "Unknown")
+    # الرابط الخاص بالـ API
+    url = f"https://api.bielnetwork.com.br/api/player_info?id={player_id}&region={region}"
 
-        # Start the process to send 1000 requests in the background
-        threading.Thread(target=send_visitors, args=(player_id,)).start()
+    # إعداد النتائج
+    results = []
 
-        # Respond to the user immediately
-        return jsonify({
-            "player_name": player_name,
-            "level": level,
-            "message": "1000 visitors started. BY API : @BL_RX AND @V1P_YK"
-        })
+    # إرسال 1000 طلب باستخدام asyncio
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    async def run_async_requests():
+        async with aiohttp.ClientSession() as session:
+            tasks = [send_request(session, url, i, results) for i in range(1000)]
+            await asyncio.gather(*tasks)
+
+    loop.run_until_complete(run_async_requests())
+
+    # استخراج أول نتيجة إذا كانت ناجحة
+    if results:
+        player_info = results[0] if isinstance(results[0], dict) else {}
+        account_id = player_info.get("accountId", "Unknown")
+        nickname = player_info.get("nickname", "Unknown")
+        level = player_info.get("level", "Unknown")
     else:
-        return jsonify({"error": f"Failed to fetch player data: {response.status_code}"}), 500
+        account_id = nickname = level = "Unknown"
+
+    # إرجاع رسالة بعد إرسال 1000 طلب مع المعلومات المطلوبة فقط
+    return jsonify({
+        "message": f"1000 visitors sent to player with ID {player_id} from region {region}!",
+        "accountId": account_id,
+        "nickname": nickname,
+        "level": level,
+        "DEV_API": "@BL_RX AND @V1P_YK"  # إضافة الرسالة من الأسفل
+    })
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=5000) 
